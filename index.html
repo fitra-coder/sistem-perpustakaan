@@ -126,54 +126,20 @@
 
   <script>
     // ====================================================================
-    // API BRIDGE: MENGHUBUNGKAN GITHUB KE GOOGLE APPS SCRIPT
-    // (Link sudah disesuaikan otomatis dengan milik Anda)
-    // ====================================================================
-    const API_URL = "https://script.google.com/macros/s/AKfycbzPrd1Z37USrDKovrz_LYTqW_yF1azGAGrXrMl2QJwg_SftVGZlo7zd2v8_sUnJUF3vIw/exec"; 
+   // 1. Masukkan URL Web App Apps Script Anda di sini!
+    const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzPrd1Z37USrDKovrz_LYTqW_yF1azGAGrXrMl2QJwg_SftVGZlo7zd2v8_sUnJUF3vIw/exec";
 
-    const google = {
-      script: {
-        run: {
-          withSuccessHandler: function(fn) { this.success = fn; return this; },
-          withFailureHandler: function(fn) { this.failure = fn; return this; },
-          _call: function(action, payload) {
-            _call: function(action, payload) {
-            fetch(API_URL, { 
-              method: 'POST', 
-              headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
-              redirect: 'follow', 
-              body: JSON.stringify({ action: action, ...payload }) 
-            })
-            .then(res => res.json())
-            .then(data => { if(this.success) this.success(data); })
-            .catch(err => { if(this.failure) this.failure(err); else alert("Gagal terhubung ke database server."); });
-          },
-          requestOTP: function(noHp) { this._call('requestOTP', {noHp}); },
-          verifyOTP: function(otpId, otpCode) { this._call('verifyOTP', {otpId, otpCode}); },
-          simpanDataAnggota: function(data) { this._call('simpanDataAnggota', {data}); },
-          prosesLogin: function(role, identifier, password) { this._call('prosesLogin', {role, identifier, password}); },
-          ajukanPeminjaman: function(nim, nama, judulBuku) { this._call('ajukanPeminjaman', {nim, nama, judulBuku}); },
-          ajukanBebasPustaka: function(nim, nama) { this._call('ajukanBebasPustaka', {nim, nama}); },
-          getAdminData: function() { this._call('getAdminData', {}); },
-          updateStatus: function(sheetName, rowIndex, colIndex, status) { this._call('updateStatus', {sheetName, rowIndex, colIndex, status}); },
-          cekStatusSurat: function(nim) { this._call('cekStatusSurat', {nim}); }
-        }
-      }
-    };
-    // ====================================================================
-// 1. Masukkan URL Web App Apps Script Anda di sini!
-const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzPrd1Z37USrDKovrz_LYTqW_yF1azGAGrXrMl2QJwg_SftVGZlo7zd2v8_sUnJUF3vIw/exec";
+    // 2. Fungsi pembantu pengganti google.script.run
+    function panggilServer(action, payload = {}) {
+      return fetch(URL_APPS_SCRIPT, {
+        method: 'POST',
+        redirect: 'follow', // Wajib agar tidak diblokir Google
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: action, payload: payload })
+      }).then(res => res.json());
+    }
 
-// 2. Fungsi pembantu pengganti google.script.run
-function panggilServer(action, payload = {}) {
-  return fetch(URL_APPS_SCRIPT, {
-    method: 'POST',
-    redirect: 'follow', // Wajib agar tidak diblokir Google
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: action, payload: payload })
-  }).then(res => res.json());
-}
-    let stream; let fotoData = ""; let currentOtpId = ""; let loginRole = 'user'; let currentUser = {};
+    let streamKamera = null; let fotoData = ""; let currentOtpId = ""; let loginRole = 'user'; let currentUser = {};
 
     function switchView(viewName) {
       document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
@@ -200,17 +166,15 @@ function panggilServer(action, payload = {}) {
       const btn = document.getElementById('btnLoginMasuk');
       if(!id || !pw) return alert("Isi form login!");
       btn.innerText = "Memproses..."; btn.disabled = true;
-     panggilServer("prosesLogin", { role: loginRole, id: id, pw: pw })
+      panggilServer("prosesLogin", { role: loginRole, id: id, pw: pw })
       .then(res => {
         btn.innerText = "Login Masuk"; btn.disabled = false;
-        
         if(res.success) {
           document.getElementById('nav-guest').style.display = 'none'; document.getElementById('nav-user').style.display = 'block';
           if(res.role === 'admin') { switchView('admin'); loadAdminData(); }
           else {
             currentUser = res.data;
             document.getElementById('userNama').innerText = currentUser.nama || "-"; document.getElementById('userNim').innerText = currentUser.nim || "-"; document.getElementById('userStatus').innerText = currentUser.status || "-";
-            
             if(currentUser.status === "Terverifikasi") {
               document.getElementById('areaFiturUser').style.display = "block"; document.getElementById('areaBlokirUser').style.display = "none"; document.getElementById('btnCetakKartu').style.display = "block"; cekStatusSuratUser();
             } else {
@@ -218,16 +182,13 @@ function panggilServer(action, payload = {}) {
             }
             switchView('user');
           }
-        } else {
-          alert(res.message);
-        }
+        } else { alert(res.message); }
       })
       .catch(err => {
-        btn.innerText = "Login Masuk"; btn.disabled = false;
-        alert("Terjadi kesalahan jaringan: " + err);
+        btn.innerText = "Login Masuk"; btn.disabled = false; alert("Terjadi kesalahan jaringan: " + err);
       });
     }
-    
+
     function cetakKartu() {
       const { nama, nim, prodi, fakultas, foto } = currentUser; const printWindow = window.open('', '_blank');
       const html = `<html><head><title>Kartu Anggota - ${nim}</title><style>@media print { @page { size: auto; margin: 0; } body { margin: 2cm; -webkit-print-color-adjust: exact; color-adjust: exact;} } body { font-family: Arial, sans-serif; display: flex; justify-content: center; margin-top: 50px;} .card { width: 340px; height: 210px; border: 2px solid #2980b9; border-radius: 8px; padding: 15px; background: #fff; position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.1);} .header { text-align: center; border-bottom: 2px solid #2980b9; padding-bottom: 5px; margin-bottom: 15px; } .header h3 { margin: 0; font-size: 15px; color: #2980b9; text-transform: uppercase; font-weight: bold;} .header h4 { margin: 3px 0 0 0; font-size: 12px; color: #333; } .content { display: flex; gap: 15px; align-items: flex-start; } .foto { width: 75px; height: 100px; object-fit: cover; border: 1px solid #ccc; border-radius: 4px; background: #eee; } .details table { font-size: 11px; border-collapse: collapse; } .details td { padding: 4px 0; vertical-align: top; } .footer { position: absolute; bottom: 10px; right: 15px; font-size: 10px; font-style: italic; color: #666; }</style></head><body><div class="card"><div class="header"><h3>KARTU ANGGOTA PERPUSTAKAAN</h3><h4>Universitas Lancang Kuning</h4></div><div class="content"><img src="${foto || ''}" class="foto" alt="Foto Profil"><div class="details"><table style="border:none;"><tr><td width="55"><b>Nama</b></td><td width="10">:</td><td>${nama}</td></tr><tr><td><b>NIM</b></td><td>:</td><td>${nim}</td></tr><tr><td><b>Prodi</b></td><td>:</td><td>${prodi}</td></tr><tr><td><b>Fakultas</b></td><td>:</td><td>${fakultas}</td></tr></table></div></div><div class="footer">Berlaku selama menjadi mahasiswa aktif</div></div><script>setTimeout(function() { window.print(); }, 500);<\/script></body></html>`;
@@ -236,14 +197,14 @@ function panggilServer(action, payload = {}) {
 
     function cekStatusSuratUser() {
       document.getElementById('areaSuratStatus').innerHTML = '<i>Mengecek berkas...</i>';
-      google.script.run.withSuccessHandler(res => {
+      panggilServer("cekStatusSurat", { nim: currentUser.nim }).then(res => {
         const area = document.getElementById('areaSuratStatus');
         if(res.found) {
           if(res.status === 'Selesai / Terbit') {
             area.innerHTML = `<div style="background:#e8f8f5; border:1px solid #2ecc71; padding:15px; border-radius:4px; margin-bottom:20px;"><h4 style="color:#27ae60; margin-top:0;">Berkas Anda Tersedia</h4><p style="font-size:14px; margin-bottom:10px;">Surat Bebas Pustaka Anda telah disetujui.</p><button class="btn btn-success" style="width:100%; font-size:16px;" onclick="cetakPDF()">📄 Download / Cetak PDF Surat</button></div>`;
           } else { area.innerHTML = `<div style="background:#fff3e0; padding:10px; border-radius:4px; margin-bottom:15px; border:1px solid #ffb74d; color:#e67e22; font-size:13px;">Status Pengajuan Surat: <b>${res.status}</b></div>`; }
         } else { area.innerHTML = ''; }
-      }).cekStatusSurat(currentUser.nim);
+      }).catch(err => console.error(err));
     }
 
     function cetakPDF() {
@@ -258,77 +219,107 @@ function panggilServer(action, payload = {}) {
       if (!noHp.startsWith('08') || noHp.length < 10) return alert("Format Nomor HP tidak valid!");
       inputNoHp.value = noHp;
       const btn = document.getElementById('btnReqOtp'); btn.innerText = "Mengirim..."; btn.disabled = true;
-      google.script.run.withSuccessHandler(res => { btn.innerText = "Kirim Kode OTP"; btn.disabled = false; if(res.success || res.data) { alert("OTP dikirim!"); currentOtpId = res.data ? res.data.otp_id : res.otp_id; document.getElementById('otp-input-section').style.display = 'block'; } else alert("Gagal kirim OTP! Pesan: " + (res.message || "Unknown error")); }).requestOTP(noHp);
+      panggilServer("requestOTP", noHp).then(res => { 
+        btn.innerText = "Kirim Kode OTP"; btn.disabled = false; 
+        if(res.success || res.data) { alert("OTP dikirim!"); currentOtpId = res.data ? res.data.otp_id : res.otp_id; document.getElementById('otp-input-section').style.display = 'block'; } 
+        else alert("Gagal kirim OTP! Pesan: " + (res.message || "Unknown error")); 
+      }).catch(err => { btn.innerText = "Kirim Kode OTP"; btn.disabled = false; alert("Error: " + err); });
     }
-    function verifikasiOTP() { const otpCode = document.getElementById('otpCode').value; if(!otpCode) return alert("Masukkan OTP"); google.script.run.withSuccessHandler(res => { if(res.success) { document.getElementById('step-1').style.display = 'none'; document.getElementById('step-2').style.display = 'block'; document.getElementById('noHpDaftar').value = document.getElementById('noHp').value; } else alert(res.message); }).verifyOTP(currentOtpId, otpCode); }
+
+    function verifikasiOTP() { 
+      const otpCode = document.getElementById('otpCode').value; if(!otpCode) return alert("Masukkan OTP"); 
+      panggilServer("verifyOTP", { otpId: currentOtpId, otpCode: otpCode }).then(res => { 
+        if(res.success) { document.getElementById('step-1').style.display = 'none'; document.getElementById('step-2').style.display = 'block'; document.getElementById('noHpDaftar').value = document.getElementById('noHp').value; } 
+        else alert(res.message); 
+      }).catch(err => alert("Error: " + err)); 
+    }
     
-  let streamKamera = null;
+    async function bukaKamera() {
+      const video = document.getElementById('kameraVideo'); const btnBuka = document.getElementById('btnBukaKamera'); const btnJepret = document.getElementById('btnJepret'); const hasilFoto = document.getElementById('hasilFoto');
+      try {
+        streamKamera = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+        video.srcObject = streamKamera; video.style.display = 'block'; hasilFoto.style.display = 'none';
+        btnBuka.style.display = 'none'; btnJepret.style.display = 'inline-block';
+      } catch (err) { alert("Gagal mengakses kamera: Pastikan Anda memberi izin kamera pada browser. (" + err.message + ")"); }
+    }
 
-// Fungsi untuk meminta izin dan menyalakan kamera
-async function bukaKamera() {
-  const video = document.getElementById('kameraVideo');
-  const btnBuka = document.getElementById('btnBukaKamera');
-  const btnJepret = document.getElementById('btnJepret');
-  const hasilFoto = document.getElementById('hasilFoto');
+    function jepretFoto() {
+      const video = document.getElementById('kameraVideo'); const canvas = document.getElementById('kameraCanvas'); const hasilFoto = document.getElementById('hasilFoto'); const btnBuka = document.getElementById('btnBukaKamera'); const btnJepret = document.getElementById('btnJepret');
+      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d'); ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      fotoData = canvas.toDataURL('image/jpeg', 0.8);
+      hasilFoto.src = fotoData; hasilFoto.style.display = 'block'; video.style.display = 'none';
+      btnJepret.style.display = 'none'; btnBuka.style.display = 'inline-block'; btnBuka.innerText = "📸 Ulangi Foto";
+      if (streamKamera) { streamKamera.getTracks().forEach(track => track.stop()); }
+    }
 
-  try {
-    // Meminta akses kamera depan (facingMode: user)
-    streamKamera = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-    
-    // Sambungkan stream ke elemen video
-    video.srcObject = streamKamera;
-    video.style.display = 'block';
-    hasilFoto.style.display = 'none';
-    
-    // Ubah tombol
-    btnBuka.style.display = 'none';
-    btnJepret.style.display = 'inline-block';
-  } catch (err) {
-    alert("Gagal mengakses kamera: Pastikan Anda memberi izin kamera pada browser. (" + err.message + ")");
-  }
-}
+    function previewUpload(event) { 
+      const file = event.target.files[0]; if(!file) return; const reader = new FileReader(); 
+      reader.onload = e => { 
+        fotoData = e.target.result; document.getElementById('hasilFoto').src = fotoData; document.getElementById('hasilFoto').style.display = 'block'; 
+        document.getElementById('kameraVideo').style.display = 'none'; document.getElementById('btnJepret').style.display = 'none'; document.getElementById('btnBukaKamera').style.display = 'inline-block'; 
+      }; 
+      reader.readAsDataURL(file); 
+    }
 
-// Fungsi untuk mengambil foto dari video yang sedang berjalan
-function jepretFoto() {
-  const video = document.getElementById('kameraVideo');
-  const canvas = document.getElementById('kameraCanvas');
-  const hasilFoto = document.getElementById('hasilFoto');
-  const btnBuka = document.getElementById('btnBukaKamera');
-  const btnJepret = document.getElementById('btnJepret');
+    function simpanPendaftaran() { 
+      const data = { noHp: document.getElementById('noHpDaftar').value, nama: document.getElementById('nama').value, nim: document.getElementById('nim').value, prodi: document.getElementById('prodi').value, fakultas: document.getElementById('fakultas').value, password: document.getElementById('password').value, foto: fotoData }; 
+      if(!data.nama || !data.nim || !data.password || !data.foto) return alert("Nama, NIM, Password dan Foto wajib diisi!"); 
+      const btn = document.getElementById('btnSimpan'); btn.innerText = "Menyimpan..."; btn.disabled = true; 
+      panggilServer("simpanDataAnggota", data).then(res => { 
+        btn.innerText = "Kirim Pendaftaran"; btn.disabled = false; 
+        if(res.success) { alert(res.message); switchView('login'); } else alert(res.message); 
+      }).catch(err => { btn.innerText = "Kirim Pendaftaran"; btn.disabled = false; alert("Error: " + err); }); 
+    }
 
-  // Set ukuran canvas sama dengan resolusi video
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  
-  // Gambar *frame* video ke canvas
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    function ajukanPinjam() { 
+      const judul = document.getElementById('judulBuku').value; if(!judul) return alert("Masukkan judul buku!"); 
+      panggilServer("ajukanPeminjaman", { nim: currentUser.nim, nama: currentUser.nama, judulBuku: judul }).then(res => { 
+        alert(res.message); document.getElementById('judulBuku').value = ''; loadAdminData(); 
+      }).catch(err => alert("Error: " + err)); 
+    }
 
-  // Ubah gambar di canvas menjadi Base64 (Format teks) lalu simpan ke variabel fotoData
-  fotoData = canvas.toDataURL('image/jpeg', 0.8); // 0.8 adalah kompresi kualitas 80%
-  
-  // Tampilkan hasil foto dan sembunyikan video hidup
-  hasilFoto.src = fotoData;
-  hasilFoto.style.display = 'block';
-  video.style.display = 'none';
-  
-  // Kembalikan tombol
-  btnJepret.style.display = 'none';
-  btnBuka.style.display = 'inline-block';
-  btnBuka.innerText = "📸 Ulangi Foto";
+    function ajukanBebas() { 
+      if(!confirm("Yakin mengajukan surat Bebas Pustaka?")) return; 
+      panggilServer("ajukanBebasPustaka", { nim: currentUser.nim, nama: currentUser.nama }).then(res => { 
+        alert(res.message); cekStatusSuratUser(); 
+      }).catch(err => alert("Error: " + err)); 
+    }
 
-  // Matikan stream kamera agar lampu webcam di PC mati
-  if (streamKamera) {
-    streamKamera.getTracks().forEach(track => track.stop());
-  }
-}
-    function previewUpload(event) { const file = event.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = e => { fotoData = e.target.result; document.getElementById('hasilFoto').src = fotoData; document.getElementById('hasilFoto').style.display = 'block'; document.getElementById('video').style.display = 'none'; document.getElementById('btnAmbilFoto').style.display = 'none'; document.getElementById('btnBukaKamera').style.display = 'inline-block'; }; reader.readAsDataURL(file); }
-    function simpanPendaftaran() { const data = { noHp: document.getElementById('noHpDaftar').value, nama: document.getElementById('nama').value, nim: document.getElementById('nim').value, prodi: document.getElementById('prodi').value, fakultas: document.getElementById('fakultas').value, password: document.getElementById('password').value, foto: fotoData }; if(!data.nama || !data.nim || !data.password || !data.foto) return alert("Nama, NIM, Password dan Foto wajib diisi!"); const btn = document.getElementById('btnSimpan'); btn.innerText = "Menyimpan..."; btn.disabled = true; google.script.run.withSuccessHandler(res => { btn.innerText = "Kirim Pendaftaran"; btn.disabled = false; if(res.success) { alert(res.message); switchView('login'); } else alert(res.message); }).simpanDataAnggota(data); }
-    function ajukanPinjam() { const judul = document.getElementById('judulBuku').value; if(!judul) return alert("Masukkan judul buku!"); google.script.run.withSuccessHandler(res => { alert(res.message); document.getElementById('judulBuku').value = ''; loadAdminData(); }).ajukanPeminjaman(currentUser.nim, currentUser.nama, judul); }
-    function ajukanBebas() { if(!confirm("Yakin mengajukan surat Bebas Pustaka?")) return; google.script.run.withSuccessHandler(res => { alert(res.message); cekStatusSuratUser(); }).ajukanBebasPustaka(currentUser.nim, currentUser.nama); }
-    function showAdminTab(tabName) { document.getElementById('adminAnggota').style.display = 'none'; document.getElementById('adminPinjam').style.display = 'none'; document.getElementById('adminSurat').style.display = 'none'; document.getElementById(tabName).style.display = 'block'; loadAdminData(); }
-    function loadAdminData() { google.script.run.withSuccessHandler(res => { if(!res.success) return; let data = res; let htmlAnggota = '<tr><th>Nama</th><th>NIM</th><th>Aksi</th></tr>'; if(data.anggota.length === 0) htmlAnggota += '<tr><td colspan="3" style="text-align:center;">Kosong</td></tr>'; data.anggota.forEach(row => { htmlAnggota += `<tr><td>${row.data[2]}</td><td>${row.data[3]}</td><td><button class="btn btn-success" onclick="acc('Database Perpustakaan', ${row.rowIndex}, 7, 'Terverifikasi')">Setujui</button></td></tr>`; }); document.getElementById('tblAnggota').innerHTML = htmlAnggota; let htmlPinjam = '<tr><th>NIM</th><th>Nama</th><th>Buku</th><th>Status</th><th>Aksi</th></tr>'; if(data.pinjaman.length === 0) htmlPinjam += '<tr><td colspan="5" style="text-align:center;">Kosong</td></tr>'; data.pinjaman.forEach(row => { let btn = row.data[4] === "Menunggu Verifikasi" ? `<button class="btn btn-success" onclick="acc('Peminjaman', ${row.rowIndex}, 5, 'Dipinjam')">Izinkan</button>` : `<button class="btn btn-secondary" style="width:auto; padding:5px;" onclick="acc('Peminjaman', ${row.rowIndex}, 5, 'Dikembalikan')">Kembalikan</button>`; htmlPinjam += `<tr><td>${row.data[1]}</td><td>${row.data[2]}</td><td>${row.data[3]}</td><td>${row.data[4]}</td><td>${btn}</td></tr>`; }); document.getElementById('tblPinjam').innerHTML = htmlPinjam; let htmlSurat = '<tr><th>NIM</th><th>Nama</th><th>Aksi</th></tr>'; if(data.bebasPustaka.length === 0) htmlSurat += '<tr><td colspan="3" style="text-align:center;">Kosong</td></tr>'; data.bebasPustaka.forEach(row => { htmlSurat += `<tr><td>${row.data[1]}</td><td>${row.data[2]}</td><td><button class="btn btn-success" onclick="acc('Bebas Pustaka', ${row.rowIndex}, 4, 'Selesai / Terbit')">Terbitkan</button></td></tr>`; }); document.getElementById('tblSurat').innerHTML = htmlSurat; }).getAdminData(); }
-    function acc(sheetName, rowIndex, colIndex, status) { if(!confirm("Ubah status menjadi: " + status + "?")) return; google.script.run.withSuccessHandler(res => { alert(res.message); loadAdminData(); }).updateStatus(sheetName, rowIndex, colIndex, status); }
+    function showAdminTab(tabName) { 
+      document.getElementById('adminAnggota').style.display = 'none'; document.getElementById('adminPinjam').style.display = 'none'; document.getElementById('adminSurat').style.display = 'none'; 
+      document.getElementById(tabName).style.display = 'block'; loadAdminData(); 
+    }
+
+    function loadAdminData() { 
+      panggilServer("getAdminData", {}).then(res => { 
+        if(!res.success) return; let data = res; 
+        let htmlAnggota = '<tr><th>Nama</th><th>NIM</th><th>Aksi</th></tr>'; 
+        if(data.anggota.length === 0) htmlAnggota += '<tr><td colspan="3" style="text-align:center;">Kosong</td></tr>'; 
+        data.anggota.forEach(row => { htmlAnggota += `<tr><td>${row.data[2]}</td><td>${row.data[3]}</td><td><button class="btn btn-success" onclick="acc('Database Perpustakaan', ${row.rowIndex}, 7, 'Terverifikasi')">Setujui</button></td></tr>`; }); 
+        document.getElementById('tblAnggota').innerHTML = htmlAnggota; 
+        
+        let htmlPinjam = '<tr><th>NIM</th><th>Nama</th><th>Buku</th><th>Status</th><th>Aksi</th></tr>'; 
+        if(data.pinjaman.length === 0) htmlPinjam += '<tr><td colspan="5" style="text-align:center;">Kosong</td></tr>'; 
+        data.pinjaman.forEach(row => { 
+          let btn = row.data[4] === "Menunggu Verifikasi" ? `<button class="btn btn-success" onclick="acc('Peminjaman', ${row.rowIndex}, 5, 'Dipinjam')">Izinkan</button>` : `<button class="btn btn-secondary" style="width:auto; padding:5px;" onclick="acc('Peminjaman', ${row.rowIndex}, 5, 'Dikembalikan')">Kembalikan</button>`; 
+          htmlPinjam += `<tr><td>${row.data[1]}</td><td>${row.data[2]}</td><td>${row.data[3]}</td><td>${row.data[4]}</td><td>${btn}</td></tr>`; 
+        }); 
+        document.getElementById('tblPinjam').innerHTML = htmlPinjam; 
+        
+        let htmlSurat = '<tr><th>NIM</th><th>Nama</th><th>Aksi</th></tr>'; 
+        if(data.bebasPustaka.length === 0) htmlSurat += '<tr><td colspan="3" style="text-align:center;">Kosong</td></tr>'; 
+        data.bebasPustaka.forEach(row => { htmlSurat += `<tr><td>${row.data[1]}</td><td>${row.data[2]}</td><td><button class="btn btn-success" onclick="acc('Bebas Pustaka', ${row.rowIndex}, 4, 'Selesai / Terbit')">Terbitkan</button></td></tr>`; }); 
+        document.getElementById('tblSurat').innerHTML = htmlSurat; 
+      }).catch(err => console.error(err)); 
+    }
+
+    function acc(sheetName, rowIndex, colIndex, status) { 
+      if(!confirm("Ubah status menjadi: " + status + "?")) return; 
+      panggilServer("updateStatus", { sheetName: sheetName, rowIndex: rowIndex, colIndex: colIndex, status: status }).then(res => { 
+        alert(res.message); loadAdminData(); 
+      }).catch(err => alert("Error: " + err)); 
+    }
   </script>
 </body>
 </html>
