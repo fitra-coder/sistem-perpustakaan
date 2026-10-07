@@ -135,9 +135,11 @@
           withSuccessHandler: function(fn) { this.success = fn; return this; },
           withFailureHandler: function(fn) { this.failure = fn; return this; },
           _call: function(action, payload) {
+            _call: function(action, payload) {
             fetch(API_URL, { 
               method: 'POST', 
               headers: { 'Content-Type': 'text/plain;charset=utf-8' }, 
+              redirect: 'follow', 
               body: JSON.stringify({ action: action, ...payload }) 
             })
             .then(res => res.json())
