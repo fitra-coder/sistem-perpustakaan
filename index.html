@@ -310,14 +310,35 @@
       } catch (err) { alert("Gagal mengakses kamera: Pastikan Anda memberi izin kamera pada browser. (" + err.message + ")"); }
     }
 
-    function jepretFoto() {
-      const video = document.getElementById('kameraVideo'); const canvas = document.getElementById('kameraCanvas'); const hasilFoto = document.getElementById('hasilFoto'); const btnBuka = document.getElementById('btnBukaKamera'); const btnJepret = document.getElementById('btnJepret');
-      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d'); ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      fotoData = canvas.toDataURL('image/jpeg', 0.8);
-      hasilFoto.src = fotoData; hasilFoto.style.display = 'block'; video.style.display = 'none';
-      btnJepret.style.display = 'none'; btnBuka.style.display = 'inline-block'; btnBuka.innerText = "📸 Ulangi Foto";
-      if (streamKamera) { streamKamera.getTracks().forEach(track => track.stop()); }
+   function jepretFoto() {
+      const video = document.getElementById('kameraVideo'); 
+      const canvas = document.getElementById('kameraCanvas'); 
+      const hasilFoto = document.getElementById('hasilFoto'); 
+      const btnBuka = document.getElementById('btnBukaKamera'); 
+      const btnJepret = document.getElementById('btnJepret');
+      
+      // PERBAIKAN: Perkecil ukuran foto agar server Google tidak "tersedak"
+      const MAX_WIDTH = 400; // Resolusi diturunkan menjadi 400px
+      const scale = MAX_WIDTH / video.videoWidth;
+      canvas.width = MAX_WIDTH; 
+      canvas.height = video.videoHeight * scale;
+      
+      const ctx = canvas.getContext('2d'); 
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      // Kompresi kualitas gambar ke 60%
+      fotoData = canvas.toDataURL('image/jpeg', 0.6);
+      
+      hasilFoto.src = fotoData; 
+      hasilFoto.style.display = 'block'; 
+      video.style.display = 'none';
+      btnJepret.style.display = 'none'; 
+      btnBuka.style.display = 'inline-block'; 
+      btnBuka.innerText = "📸 Ulangi Foto";
+      
+      if (streamKamera) { 
+        streamKamera.getTracks().forEach(track => track.stop()); 
+      }
     }
 
     function previewUpload(event) { 
