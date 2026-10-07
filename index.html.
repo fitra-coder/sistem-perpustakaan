@@ -200,14 +200,17 @@ function panggilServer(action, payload = {}) {
       const btn = document.getElementById('btnLoginMasuk');
       if(!id || !pw) return alert("Isi form login!");
       btn.innerText = "Memproses..."; btn.disabled = true;
-      google.script.run.withSuccessHandler(res => {
+     panggilServer("prosesLogin", { role: loginRole, id: id, pw: pw })
+      .then(res => {
         btn.innerText = "Login Masuk"; btn.disabled = false;
+        
         if(res.success) {
           document.getElementById('nav-guest').style.display = 'none'; document.getElementById('nav-user').style.display = 'block';
-          if(res.role === 'admin') { switchView('admin'); loadAdminData(); } 
+          if(res.role === 'admin') { switchView('admin'); loadAdminData(); }
           else {
             currentUser = res.data;
             document.getElementById('userNama').innerText = currentUser.nama || "-"; document.getElementById('userNim').innerText = currentUser.nim || "-"; document.getElementById('userStatus').innerText = currentUser.status || "-";
+            
             if(currentUser.status === "Terverifikasi") {
               document.getElementById('areaFiturUser').style.display = "block"; document.getElementById('areaBlokirUser').style.display = "none"; document.getElementById('btnCetakKartu').style.display = "block"; cekStatusSuratUser();
             } else {
@@ -215,8 +218,14 @@ function panggilServer(action, payload = {}) {
             }
             switchView('user');
           }
-        } else alert(res.message);
-      }).prosesLogin(loginRole, id, pw);
+        } else {
+          alert(res.message);
+        }
+      })
+      .catch(err => {
+        btn.innerText = "Login Masuk"; btn.disabled = false;
+        alert("Terjadi kesalahan jaringan: " + err);
+      });
     }
     
     function cetakKartu() {
