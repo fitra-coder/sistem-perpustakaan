@@ -124,9 +124,8 @@
     </div>
   </div>
 
-  <script>
-    // ====================================================================
-   // 1. Masukkan URL Web App Apps Script Anda di sini!
+<script>
+    // 1. Masukkan URL Web App Apps Script Anda di sini!
     const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzPrd1Z37USrDKovrz_LYTqW_yF1azGAGrXrMl2QJwg_SftVGZlo7zd2v8_sUnJUF3vIw/exec";
 
     // 2. Fungsi pembantu pengganti google.script.run
@@ -140,6 +139,7 @@
     }
 
     let streamKamera = null; let fotoData = ""; let currentOtpId = ""; let loginRole = 'user'; let currentUser = {};
+    let tempLoginData = null; let currentLoginOtpId = "";
 
     function switchView(viewName) {
       document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
@@ -147,10 +147,11 @@
     }
 
     function logout() {
-      currentUser = {};
+      currentUser = {}; tempLoginData = null; currentLoginOtpId = "";
       document.getElementById('nav-guest').style.display = 'block'; document.getElementById('nav-user').style.display = 'none';
       document.getElementById('loginUsername').value = ''; document.getElementById('loginPassword').value = '';
-      document.getElementById('areaSuratStatus').innerHTML = ''; switchView('login');
+      document.getElementById('areaSuratStatus').innerHTML = ''; 
+      batalkanLogin(); switchView('login');
     }
 
     function setLoginRole(role) {
@@ -160,34 +161,93 @@
       else { document.getElementById('tabAdmin').classList.add('active'); document.getElementById('lblUsername').innerText = "Username Admin"; }
     }
 
+    // --- ALUR LOGIN DIPERBAIKI (MENGGUNAKAN OTP EMAIL) ---
     function doLogin() {
       const id = document.getElementById('loginUsername').value;
       const pw = document.getElementById('loginPassword').value;
       const btn = document.getElementById('btnLoginMasuk');
       if(!id || !pw) return alert("Isi form login!");
-      btn.innerText = "Memproses..."; btn.disabled = true;
-      panggilServer("prosesLogin", { role: loginRole, id: id, pw: pw })
-      .then(res => {
-        btn.innerText = "Login Masuk"; btn.disabled = false;
+      
+      btn.innerText = "Memeriksa Kredensial..."; btn.disabled = true;
+      panggilServer("prosesLogin", { role: loginRole, id: id, pw: pw }).then(res => {
         if(res.success) {
-          document.getElementById('nav-guest').style.display = 'none'; document.getElementById('nav-user').style.display = 'block';
-          if(res.role === 'admin') { switchView('admin'); loadAdminData(); }
-          else {
-            currentUser = res.data;
-            document.getElementById('userNama').innerText = currentUser.nama || "-"; document.getElementById('userNim').innerText = currentUser.nim || "-"; document.getElementById('userStatus').innerText = currentUser.status || "-";
-            if(currentUser.status === "Terverifikasi") {
-              document.getElementById('areaFiturUser').style.display = "block"; document.getElementById('areaBlokirUser').style.display = "none"; document.getElementById('btnCetakKartu').style.display = "block"; cekStatusSuratUser();
+          btn.innerText = "Mengirim OTP Email...";
+          tempLoginData = res; 
+          
+          panggilServer("requestOTPEmail", res.email).then(otpRes => {
+            btn.innerText = "Login Masuk"; btn.disabled = false;
+            if(otpRes.success || otpRes.data) {
+              currentLoginOtpId = otpRes.data ? otpRes.data.otp_id : otpRes.otp_id;
+              document.getElementById('login-form-main').style.display = 'none';
+              document.getElementById('login-form-otp').style.display = 'block';
+              
+              const email = res.email;
+              const maskedEmail = email.substring(0, 3) + "****" + email.substring(email.indexOf('@'));
+              document.getElementById('lblEmailTujuan').innerText = maskedEmail;
             } else {
-              document.getElementById('areaFiturUser').style.display = "none"; document.getElementById('areaBlokirUser').style.display = "block"; document.getElementById('btnCetakKartu').style.display = "none";
+              alert("Gagal mengirim OTP ke Email: " + (otpRes.message || "Unknown error"));
             }
-            switchView('user');
-          }
-        } else { alert(res.message); }
-      })
-      .catch(err => {
-        btn.innerText = "Login Masuk"; btn.disabled = false; alert("Terjadi kesalahan jaringan: " + err);
+          }).catch(err => {
+            btn.innerText = "Login Masuk"; btn.disabled = false;
+            alert("Terjadi kesalahan jaringan saat mengirim OTP: " + err);
+          });
+        } else {
+          btn.innerText = "Login Masuk"; btn.disabled = false;
+          alert(res.message); 
+        }
+      }).catch(err => {
+        btn.innerText = "Login Masuk"; btn.disabled = false;
+        alert("Terjadi kesalahan jaringan: " + err);
       });
     }
+
+    function verifikasiOtpLogin() {
+      const otpCode = document.getElementById('otpLoginCode').value;
+      if(!otpCode) return alert("Masukkan kode OTP dari Email Anda!");
+      
+      const btn = document.getElementById('btnVerifikasiOtpLogin');
+      btn.innerText = "Memverifikasi..."; btn.disabled = true;
+
+      panggilServer("verifyOTP", { otpId: currentLoginOtpId, otpCode: otpCode }).then(res => {
+        btn.innerText = "Verifikasi & Masuk Dashboard"; btn.disabled = false;
+        if(res.success === true) {
+          alert("AKSES DITERIMA: OTP Valid! Mengalihkan ke Dasbor...");
+          masukKeDasbor(); 
+        } else {
+          alert("AKSES DITOLAK: Kode OTP Anda Salah! (Pesan Sistem: " + res.message + ")"); 
+        }
+      }).catch(err => {
+        btn.innerText = "Verifikasi & Masuk Dashboard"; btn.disabled = false;
+        alert("Terjadi kesalahan jaringan: " + err);
+      });
+    }
+
+    function masukKeDasbor() {
+      const res = tempLoginData;
+      document.getElementById('nav-guest').style.display = 'none'; document.getElementById('nav-user').style.display = 'block';
+      if(res.role === 'admin') { 
+        switchView('admin'); loadAdminData(); 
+      } else {
+        try {
+          currentUser = res.data;
+          document.getElementById('userNama').innerText = currentUser.nama || "-"; document.getElementById('userNim').innerText = currentUser.nim || "-"; document.getElementById('userStatus').innerText = currentUser.status || "-";
+          if(currentUser.status === "Terverifikasi") {
+            document.getElementById('areaFiturUser').style.display = "block"; document.getElementById('areaBlokirUser').style.display = "none"; document.getElementById('btnCetakKartu').style.display = "block"; cekStatusSuratUser();
+          } else {
+            document.getElementById('areaFiturUser').style.display = "none"; document.getElementById('areaBlokirUser').style.display = "block"; document.getElementById('btnCetakKartu').style.display = "none";
+          }
+          switchView('user');
+        } catch(e) { alert("Error memuat Dasbor: " + e.message); }
+      }
+      batalkanLogin();
+    }
+
+    function batalkanLogin() {
+      document.getElementById('login-form-main').style.display = 'block';
+      document.getElementById('login-form-otp').style.display = 'none';
+      document.getElementById('otpLoginCode').value = '';
+    }
+    // --------------------------------------------------------
 
     function cetakKartu() {
       const { nama, nim, prodi, fakultas, foto } = currentUser; const printWindow = window.open('', '_blank');
