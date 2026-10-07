@@ -129,7 +129,7 @@
     // API BRIDGE: MENGHUBUNGKAN GITHUB KE GOOGLE APPS SCRIPT
     // (Link sudah disesuaikan otomatis dengan milik Anda)
     // ====================================================================
-    const API_URL = "https://script.google.com/a/macros/unilak.ac.id/s/AKfycbzPrd1Z37USrDKovrz_LYTqW_yF1azGAGrXrMl2QJwg_SftVGZlo7zd2v8_sUNJUF3vIw/exec"; 
+    const API_URL = "https://script.google.com/macros/s/AKfycbzPrd1Z37USrDKovrz_LYTqW_yF1azGAGrXrMl2QJwg_SftVGZlo7zd2v8_sUnJUF3vIw/exec"; 
 
     const google = {
       script: {
