@@ -61,17 +61,19 @@
         <div class="form-group">
           <label>Foto Selfie</label>
           <div class="camera-section">
-            <video id="video" width="100%" autoplay playsinline style="display:none; border-radius:4px; border:1px solid #ccc;"></video>
-            <canvas id="canvas" style="display:none;"></canvas>
-            <img id="hasilFoto" style="display:none; width:100%; border-radius:4px; margin-bottom:10px;" />
-            <div class="camera-buttons">
-              <!-- Kamera sekarang akan berfungsi karena web ada di GitHub -->
-              <button class="btn btn-secondary" id="btnBukaKamera" style="width:auto;" onclick="bukaKamera()">🎥 Buka Kamera</button>
-              <button class="btn" id="btnAmbilFoto" style="background-color: #f39c12; width:auto; display:none;" onclick="ambilFoto()">📸 Ambil Foto</button>
-              <button class="btn" style="background-color: #e1f5fe; color: #3498db; width:auto;" onclick="document.getElementById('fileUpload').click()">Upload File</button>
-              <input type="file" id="fileUpload" style="display:none;" accept="image/*" onchange="previewUpload(event)">
-            </div>
-          </div>
+    <!-- Elemen Video untuk menampilkan tangkapan langsung dari kamera -->
+    <video id="kameraVideo" autoplay playsinline style="width:100%; border-radius:4px; display:none;"></video>
+    <!-- Canvas tersembunyi untuk mengambil gambar dari video -->
+    <canvas id="kameraCanvas" style="display:none;"></canvas>
+    <img id="hasilFoto" style="display:none; width:100%; border-radius:4px; margin-bottom:10px;" />
+  <div class="camera-buttons">
+    <button type="button" id="btnBukaKamera" class="btn" style="background-color: #3498db; width:auto;" onclick="bukaKamera()">📸 Buka Kamera</button>
+    <button type="button" id="btnJepret" class="btn" style="background-color: #2ecc71; width:auto; display:none;" onclick="jepretFoto()">⭕ Ambil Foto</button>
+    <!-- Tombol upload manual sebagai cadangan jika kamera rusak -->
+    <button type="button" class="btn" style="background-color: #7f8c8d; width:auto;" onclick="document.getElementById('fileUpload').click()">📁 Upload Biasa</button>
+    <input type="file" id="fileUpload" style="display:none;" accept="image/*" onchange="previewUpload(event)">
+    </div>
+    </div>
         </div>
         <button class="btn" id="btnSimpan" onclick="simpanPendaftaran()">Kirim Pendaftaran</button>
       </div>
@@ -159,7 +161,18 @@
       }
     };
     // ====================================================================
+// 1. Masukkan URL Web App Apps Script Anda di sini!
+const URL_APPS_SCRIPT = "ISI_DENGAN_URL_WEB_APP_ANDA_YANG_BERAKHIRAN_EXEC";
 
+// 2. Fungsi pembantu pengganti google.script.run
+function panggilServer(action, payload = {}) {
+  return fetch(URL_APPS_SCRIPT, {
+    method: 'POST',
+    redirect: 'follow', // Wajib agar tidak diblokir Google
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ action: action, payload: payload })
+  }).then(res => res.json());
+}
     let stream; let fotoData = ""; let currentOtpId = ""; let loginRole = 'user'; let currentUser = {};
 
     function switchView(viewName) {
@@ -240,9 +253,66 @@
     }
     function verifikasiOTP() { const otpCode = document.getElementById('otpCode').value; if(!otpCode) return alert("Masukkan OTP"); google.script.run.withSuccessHandler(res => { if(res.success) { document.getElementById('step-1').style.display = 'none'; document.getElementById('step-2').style.display = 'block'; document.getElementById('noHpDaftar').value = document.getElementById('noHp').value; } else alert(res.message); }).verifyOTP(currentOtpId, otpCode); }
     
-    // Kamera langsung menyala di GitHub!
-    function bukaKamera() { const video = document.getElementById('video'); document.getElementById('hasilFoto').style.display = 'none'; video.style.display = 'block'; document.getElementById('btnAmbilFoto').style.display = 'inline-block'; document.getElementById('btnBukaKamera').style.display = 'none'; navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } }).then(s => { stream = s; video.srcObject = stream; }).catch(err => alert("Kamera gagal diakses: " + err.message)); }
-    function ambilFoto() { const video = document.getElementById('video'); const canvas = document.getElementById('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight; canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height); fotoData = canvas.toDataURL('image/jpeg', 0.8); document.getElementById('hasilFoto').src = fotoData; document.getElementById('hasilFoto').style.display = 'block'; video.style.display = 'none'; document.getElementById('btnAmbilFoto').style.display = 'none'; document.getElementById('btnBukaKamera').style.display = 'inline-block'; document.getElementById('btnBukaKamera').innerText = "🔄 Ulangi Kamera"; if(stream) stream.getTracks().forEach(track => track.stop()); }
+  let streamKamera = null;
+
+// Fungsi untuk meminta izin dan menyalakan kamera
+async function bukaKamera() {
+  const video = document.getElementById('kameraVideo');
+  const btnBuka = document.getElementById('btnBukaKamera');
+  const btnJepret = document.getElementById('btnJepret');
+  const hasilFoto = document.getElementById('hasilFoto');
+
+  try {
+    // Meminta akses kamera depan (facingMode: user)
+    streamKamera = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+    
+    // Sambungkan stream ke elemen video
+    video.srcObject = streamKamera;
+    video.style.display = 'block';
+    hasilFoto.style.display = 'none';
+    
+    // Ubah tombol
+    btnBuka.style.display = 'none';
+    btnJepret.style.display = 'inline-block';
+  } catch (err) {
+    alert("Gagal mengakses kamera: Pastikan Anda memberi izin kamera pada browser. (" + err.message + ")");
+  }
+}
+
+// Fungsi untuk mengambil foto dari video yang sedang berjalan
+function jepretFoto() {
+  const video = document.getElementById('kameraVideo');
+  const canvas = document.getElementById('kameraCanvas');
+  const hasilFoto = document.getElementById('hasilFoto');
+  const btnBuka = document.getElementById('btnBukaKamera');
+  const btnJepret = document.getElementById('btnJepret');
+
+  // Set ukuran canvas sama dengan resolusi video
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  
+  // Gambar *frame* video ke canvas
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  // Ubah gambar di canvas menjadi Base64 (Format teks) lalu simpan ke variabel fotoData
+  fotoData = canvas.toDataURL('image/jpeg', 0.8); // 0.8 adalah kompresi kualitas 80%
+  
+  // Tampilkan hasil foto dan sembunyikan video hidup
+  hasilFoto.src = fotoData;
+  hasilFoto.style.display = 'block';
+  video.style.display = 'none';
+  
+  // Kembalikan tombol
+  btnJepret.style.display = 'none';
+  btnBuka.style.display = 'inline-block';
+  btnBuka.innerText = "📸 Ulangi Foto";
+
+  // Matikan stream kamera agar lampu webcam di PC mati
+  if (streamKamera) {
+    streamKamera.getTracks().forEach(track => track.stop());
+  }
+}
     function previewUpload(event) { const file = event.target.files[0]; if(!file) return; const reader = new FileReader(); reader.onload = e => { fotoData = e.target.result; document.getElementById('hasilFoto').src = fotoData; document.getElementById('hasilFoto').style.display = 'block'; document.getElementById('video').style.display = 'none'; document.getElementById('btnAmbilFoto').style.display = 'none'; document.getElementById('btnBukaKamera').style.display = 'inline-block'; }; reader.readAsDataURL(file); }
     function simpanPendaftaran() { const data = { noHp: document.getElementById('noHpDaftar').value, nama: document.getElementById('nama').value, nim: document.getElementById('nim').value, prodi: document.getElementById('prodi').value, fakultas: document.getElementById('fakultas').value, password: document.getElementById('password').value, foto: fotoData }; if(!data.nama || !data.nim || !data.password || !data.foto) return alert("Nama, NIM, Password dan Foto wajib diisi!"); const btn = document.getElementById('btnSimpan'); btn.innerText = "Menyimpan..."; btn.disabled = true; google.script.run.withSuccessHandler(res => { btn.innerText = "Kirim Pendaftaran"; btn.disabled = false; if(res.success) { alert(res.message); switchView('login'); } else alert(res.message); }).simpanDataAnggota(data); }
     function ajukanPinjam() { const judul = document.getElementById('judulBuku').value; if(!judul) return alert("Masukkan judul buku!"); google.script.run.withSuccessHandler(res => { alert(res.message); document.getElementById('judulBuku').value = ''; loadAdminData(); }).ajukanPeminjaman(currentUser.nim, currentUser.nama, judul); }
