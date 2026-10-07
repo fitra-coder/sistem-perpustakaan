@@ -162,7 +162,7 @@
     };
     // ====================================================================
 // 1. Masukkan URL Web App Apps Script Anda di sini!
-const URL_APPS_SCRIPT = "ISI_DENGAN_URL_WEB_APP_ANDA_YANG_BERAKHIRAN_EXEC";
+const URL_APPS_SCRIPT = "https://script.google.com/macros/s/AKfycbzPrd1Z37USrDKovrz_LYTqW_yF1azGAGrXrMl2QJwg_SftVGZlo7zd2v8_sUnJUF3vIw/exec";
 
 // 2. Fungsi pembantu pengganti google.script.run
 function panggilServer(action, payload = {}) {
