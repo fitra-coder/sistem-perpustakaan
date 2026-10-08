@@ -262,16 +262,25 @@
       printWindow.document.write(html); printWindow.document.close();
     }
 
-    function cekStatusSuratUser() {
-      document.getElementById('areaSuratStatus').innerHTML = '<i>Mengecek berkas...</i>';
+ function cekStatusSuratUser() {
+      const area = document.getElementById('areaSuratStatus');
+      area.innerHTML = '<i>Mengecek berkas...</i>'; // Menampilkan indikator loading awal
+
       panggilServer("cekStatusSurat", { nim: currentUser.nim }).then(res => {
-        const area = document.getElementById('areaSuratStatus');
         if(res.found) {
           if(res.status === 'Selesai / Terbit') {
             area.innerHTML = `<div style="background:#e8f8f5; border:1px solid #2ecc71; padding:15px; border-radius:4px; margin-bottom:20px;"><h4 style="color:#27ae60; margin-top:0;">Berkas Anda Tersedia</h4><p style="font-size:14px; margin-bottom:10px;">Surat Bebas Pustaka Anda telah disetujui.</p><button class="btn btn-success" style="width:100%; font-size:16px;" onclick="cetakPDF()">📄 Download / Cetak PDF Surat</button></div>`;
-          } else { area.innerHTML = `<div style="background:#fff3e0; padding:10px; border-radius:4px; margin-bottom:15px; border:1px solid #ffb74d; color:#e67e22; font-size:13px;">Status Pengajuan Surat: <b>${res.status}</b></div>`; }
-        } else { area.innerHTML = ''; }
-      }).catch(err => console.error(err));
+          } else { 
+            area.innerHTML = `<div style="background:#fff3e0; padding:10px; border-radius:4px; margin-bottom:15px; border:1px solid #ffb74d; color:#e67e22; font-size:13px;">Status Pengajuan Surat: <b>${res.status}</b></div>`; 
+          }
+        } else { 
+          area.innerHTML = ''; // PERBAIKAN: Jika surat tidak ditemukan, kosongkan teksnya
+        }
+      }).catch(err => {
+        console.error(err);
+        // PERBAIKAN: Jika terjadi error jaringan/server, hapus teks loading dan tampilkan error
+        area.innerHTML = `<i style="color:red; font-size: 14px;">Gagal mengecek status surat. (Pesan: ${err.message || 'Koneksi terputus'})</i>`;
+      });
     }
 
     function cetakPDF() {
