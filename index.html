@@ -439,7 +439,7 @@
 
     // Fungsi ACC (Diperbarui untuk mengakomodasi notifikasi otomatis server)
     function acc(sheetName, rowIndex, colIndex, status) { 
-      if(!confirm("Ubah status menjadi: " + status + "? File PDF akan otomatis dikirim via Email/WA.")) return; 
+      if(!confirm("Ubah status menjadi: " + status + "? Notifikasi akan otomatis dikirim via Email/WA.")) return; 
       panggilServer("updateStatus", { sheetName: sheetName, rowIndex: rowIndex, colIndex: colIndex, status: status, alasan: "" }).then(res => { 
         alert(res.message); loadAdminData(); 
       }).catch(err => alert("Error: " + err)); 
