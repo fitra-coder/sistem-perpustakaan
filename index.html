@@ -103,7 +103,6 @@
     </div>
 
     <!-- Dasbor Mahasiswa -->
-    <!-- Dasbor Mahasiswa -->
     <div id="view-user" class="view-section">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <h2>Selamat Datang, <span id="userNama" style="color:#3498db;"></span></h2>
@@ -286,27 +285,6 @@
       printWindow.document.write(html); printWindow.document.close();
     }
 
- function cekStatusSuratUser() {
-      const area = document.getElementById('areaSuratStatus');
-      area.innerHTML = '<i>Mengecek berkas...</i>'; // Menampilkan indikator loading awal
-
-      panggilServer("cekStatusSurat", { nim: currentUser.nim }).then(res => {
-        if(res.found) {
-          if(res.status === 'Selesai / Terbit') {
-            area.innerHTML = `<div style="background:#e8f8f5; border:1px solid #2ecc71; padding:15px; border-radius:4px; margin-bottom:20px;"><h4 style="color:#27ae60; margin-top:0;">Berkas Anda Tersedia</h4><p style="font-size:14px; margin-bottom:10px;">Surat Bebas Pustaka Anda telah disetujui.</p><button class="btn btn-success" style="width:100%; font-size:16px;" onclick="cetakPDF()">📄 Download / Cetak PDF Surat</button></div>`;
-          } else { 
-            area.innerHTML = `<div style="background:#fff3e0; padding:10px; border-radius:4px; margin-bottom:15px; border:1px solid #ffb74d; color:#e67e22; font-size:13px;">Status Pengajuan Surat: <b>${res.status}</b></div>`; 
-          }
-        } else { 
-          area.innerHTML = ''; // PERBAIKAN: Jika surat tidak ditemukan, kosongkan teksnya
-        }
-      }).catch(err => {
-        console.error(err);
-        // PERBAIKAN: Jika terjadi error jaringan/server, hapus teks loading dan tampilkan error
-        area.innerHTML = `<i style="color:red; font-size: 14px;">Gagal mengecek status surat. (Pesan: ${err.message || 'Koneksi terputus'})</i>`;
-      });
-    }
-
     function cetakPDF() {
       const nama = currentUser.nama; const nim = currentUser.nim; const d = new Date(); const tanggal = d.getDate() + '/' + (d.getMonth()+1) + '/' + d.getFullYear(); const printWindow = window.open('', '_blank');
       const html = `<html><head><title>Surat Bebas Pustaka - ${nim}</title><style>@media print { @page { size: A4; margin: 2cm; } } body { font-family: "Times New Roman", Times, serif; padding: 20px; line-height: 1.6; color: #000; } .kop { text-align: center; border-bottom: 3px solid black; margin-bottom: 30px; padding-bottom: 10px; } .kop h2 { margin: 0; font-size: 22px; text-transform: uppercase; } .kop h3 { margin: 5px 0; font-size: 18px; } .kop p { margin: 0; font-size: 14px; } .content { margin-top: 40px; text-align: justify; font-size: 16px; } .signature { margin-top: 80px; float: right; text-align: center; width: 250px; }</style></head><body><div class="kop"><h2>UNIVERSITAS LANCANG KUNING</h2><h3>UPT PERPUSTAKAAN</h3><p>Jl. Yos Sudarso Km. 8 Rumbai, Pekanbaru, Riau</p></div><h3 style="text-align:center; text-decoration:underline; margin-bottom:40px;">SURAT KETERANGAN BEBAS PUSTAKA</h3><div class="content"><p>Kepala UPT Perpustakaan Universitas Lancang Kuning dengan ini menerangkan bahwa:</p><table style="margin-left: 30px; margin-bottom: 20px; margin-top: 20px; font-size: 16px;"><tr><td width="180">Nama Lengkap</td><td>: <b>${nama}</b></td></tr><tr><td>NIM</td><td>: <b>${nim}</b></td></tr></table><p>Mahasiswa tersebut di atas dinyatakan <b>TIDAK MEMILIKI PINJAMAN BUKU</b> dan <b>TIDAK MEMILIKI TANGGUNGAN DENDA</b> di UPT Perpustakaan Universitas Lancang Kuning.</p><p>Demikian surat keterangan ini diberikan untuk dapat dipergunakan sebagai salah satu syarat akademik / pengambilan ijazah.</p></div><div class="signature"><p>Pekanbaru, ${tanggal}</p><p>Kepala UPT Perpustakaan,</p><br><br><br><br><p><b>( .................................................... )</b></p></div><script>setTimeout(function() { window.print(); }, 500);</scr`+`ipt></body></html>`;
@@ -467,12 +445,6 @@
       }).catch(err => alert("Error: " + err)); 
     }
 
-    function acc(sheetName, rowIndex, colIndex, status) { 
-      if(!confirm("Ubah status menjadi: " + status + "?")) return; 
-      panggilServer("updateStatus", { sheetName: sheetName, rowIndex: rowIndex, colIndex: colIndex, status: status }).then(res => { 
-        alert(res.message); loadAdminData(); 
-      }).catch(err => alert("Error: " + err)); 
-    }
     // FITUR EDIT PROFIL
     let editFotoBase64 = "";
     function bukaEditProfil() {
