@@ -412,14 +412,22 @@
       document.getElementById(tabName).style.display = 'block'; loadAdminData(); 
     }
 
-    function loadAdminData() { 
+   function loadAdminData() { 
       panggilServer("getAdminData", {}).then(res => { 
         if(!res.success) return; let data = res; 
+        
+        // Tabel Verifikasi Anggota
         let htmlAnggota = '<tr><th>Nama</th><th>NIM</th><th>Aksi</th></tr>'; 
         if(data.anggota.length === 0) htmlAnggota += '<tr><td colspan="3" style="text-align:center;">Kosong</td></tr>'; 
-        data.anggota.forEach(row => { htmlAnggota += `<tr><td>${row.data[2]}</td><td>${row.data[3]}</td><td><button class="btn btn-success" onclick="acc('Database Perpustakaan', ${row.rowIndex}, 7, 'Terverifikasi')">Setujui</button></td></tr>`; }); 
+        data.anggota.forEach(row => { 
+          htmlAnggota += `<tr><td>${row.data[2]}</td><td>${row.data[3]}</td><td>
+            <button class="btn btn-success" onclick="acc('Database Perpustakaan', ${row.rowIndex}, 7, 'Terverifikasi')">Setujui</button>
+            <button class="btn btn-secondary" style="background-color:#e74c3c; width:auto; padding:5px 10px;" onclick="tolakData('Database Perpustakaan', ${row.rowIndex}, 7)">Tolak</button>
+          </td></tr>`; 
+        }); 
         document.getElementById('tblAnggota').innerHTML = htmlAnggota; 
         
+        // Tabel Peminjaman (Tetap sama)
         let htmlPinjam = '<tr><th>NIM</th><th>Nama</th><th>Buku</th><th>Status</th><th>Aksi</th></tr>'; 
         if(data.pinjaman.length === 0) htmlPinjam += '<tr><td colspan="5" style="text-align:center;">Kosong</td></tr>'; 
         data.pinjaman.forEach(row => { 
@@ -428,11 +436,35 @@
         }); 
         document.getElementById('tblPinjam').innerHTML = htmlPinjam; 
         
+        // Tabel Surat Bebas Pustaka
         let htmlSurat = '<tr><th>NIM</th><th>Nama</th><th>Aksi</th></tr>'; 
         if(data.bebasPustaka.length === 0) htmlSurat += '<tr><td colspan="3" style="text-align:center;">Kosong</td></tr>'; 
-        data.bebasPustaka.forEach(row => { htmlSurat += `<tr><td>${row.data[1]}</td><td>${row.data[2]}</td><td><button class="btn btn-success" onclick="acc('Bebas Pustaka', ${row.rowIndex}, 4, 'Selesai / Terbit')">Terbitkan</button></td></tr>`; }); 
+        data.bebasPustaka.forEach(row => { 
+          htmlSurat += `<tr><td>${row.data[1]}</td><td>${row.data[2]}</td><td>
+            <button class="btn btn-success" onclick="acc('Bebas Pustaka', ${row.rowIndex}, 4, 'Selesai / Terbit')">Terbitkan</button>
+            <button class="btn btn-secondary" style="background-color:#e74c3c; width:auto; padding:5px 10px;" onclick="tolakData('Bebas Pustaka', ${row.rowIndex}, 4)">Tolak</button>
+          </td></tr>`; 
+        }); 
         document.getElementById('tblSurat').innerHTML = htmlSurat; 
       }).catch(err => console.error(err)); 
+    }
+
+    // Fungsi Baru untuk Menolak Data dengan Alasan
+    function tolakData(sheetName, rowIndex, colIndex) {
+      let alasan = prompt("Masukkan alasan penolakan (misal: Foto tidak jelas / Masih ada denda):");
+      if(alasan === null || alasan.trim() === "") return; // Batal jika kosong
+      
+      panggilServer("updateStatus", { sheetName: sheetName, rowIndex: rowIndex, colIndex: colIndex, status: "Ditolak", alasan: alasan }).then(res => { 
+        alert(res.message); loadAdminData(); 
+      }).catch(err => alert("Error: " + err)); 
+    }
+
+    // Fungsi ACC (Diperbarui untuk mengakomodasi notifikasi otomatis server)
+    function acc(sheetName, rowIndex, colIndex, status) { 
+      if(!confirm("Ubah status menjadi: " + status + "? File PDF akan otomatis dikirim via Email/WA.")) return; 
+      panggilServer("updateStatus", { sheetName: sheetName, rowIndex: rowIndex, colIndex: colIndex, status: status, alasan: "" }).then(res => { 
+        alert(res.message); loadAdminData(); 
+      }).catch(err => alert("Error: " + err)); 
     }
 
     function acc(sheetName, rowIndex, colIndex, status) { 
